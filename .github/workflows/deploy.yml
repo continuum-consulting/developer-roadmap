@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [ master, feature/awsdeploy ]
+    branches: [ master ]
 
 permissions:
   id-token: write
