@@ -1,30 +1,39 @@
-name: Deployment to GH Pages
+name: Deploy
+
 on:
   push:
     branches: [ master ]
-env:
-  ROADMAP_GA_SECRET: ${{ secrets.GA_SECRET }}
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  CI: true
-  NEXT_TELEMETRY_DISABLED: 1
+
+permissions:
+  id-token: write
+  contents: read
+  
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-node@v1
-      with:
-        node-version: 14
-    - name: Setup Environment
-      run: |
-        npm install
-    - name: Generate meta and builld
-      run: |
-        npm run meta
-        npm run build
-    - name: Deploy to GH Pages
-      run: |
-        git config user.email "kamranahmed.se@gmail.com"
-        git config user.name "Kamran Ahmed"
-        git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git
-        npm run deploy
+      - name: configureawscredentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with: 
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: deploy-front
+          aws-region: ${{ secrets.AWS_REGION }}
+        
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js environment
+        uses: actions/setup-node@v3.2.0
+        with:
+          node-version: 16.x
+          cache: 'npm'
+        
+      - name: Build deploy artifacts
+        run: |
+          npm install
+          npm run build
+      # Deploy the files to AWS
+      - name: Deploy to AWS
+        run: aws s3 sync $GITHUB_WORKSPACE/out s3://${{ secrets.AWS_BUCKET }}/
